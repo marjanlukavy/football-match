@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/*
+ * Дизайн-токени. Уся палітра — тут, щоб пізніше перейти на стиль NVIDIA
+ * заміною значень, а не переписуванням компонентів.
+ */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-frame: #0b0b0d; /* зовнішня рамка застосунку */
+  --color-rail: #17171a; /* темна бічна панель */
+  --color-rail-2: #222226;
+  --color-rail-text: #a1a1aa;
+
+  --color-panel: #fbfbfd; /* біла робоча панель */
+  --color-ink: #121216; /* основний текст */
+  --color-muted: #7c7f8b;
+  --color-subtle: #a9acb6;
+  --color-line: #ebebf1;
+
+  --color-accent: #7b6cf6; /* фіолетовий акцент */
+  --color-accent-ink: #4c3fc4;
+  --color-lavender: #c8bff6; /* «точно буду» */
+  --color-lavender-soft: #e7e3fc; /* «можливо» */
+  --color-mist: #dbe6ec; /* гра, на яку я не записаний */
+  --color-mist-ink: #4f6470;
+  --color-lime: #dcef7d;
+  --color-pink: #f9d3ee;
+  --color-pink-ink: #b0438f;
+  --color-success: #3fa877;
+  --color-warn: #e0a126;
+  --color-danger: #e0525e;
+
+  /* Розстановка на полі */
+  --color-pitch: #050506;
+  --color-pitch-line: rgb(255 255 255 / 0.32);
+  --color-team-a: #4ea3f1;
+  --color-team-b: #ef4b5c;
+  --color-slot: #3a3a3e;
+
+  --radius-card: 1.75rem;
+  --radius-tile: 1.125rem;
+
+  --shadow-pop: 0 24px 60px -12px rgb(30 25 70 / 0.28), 0 2px 6px rgb(30 25 70 / 0.06);
+  --shadow-soft: 0 1px 2px rgb(20 20 40 / 0.04), 0 8px 24px -12px rgb(20 20 40 / 0.12);
+
+  --animate-pop-in: pop-in 160ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  --animate-fade-up: fade-up 260ms ease-out both;
+  /* Сторінка входу: поява блоків, зміна вкладок, помилка, м'яч у логотипі. */
+  --animate-rise: rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-slide-from-right: slide-from-right 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-slide-from-left: slide-from-left 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-shake: shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  --animate-roll: roll 800ms cubic-bezier(0.3, 1.25, 0.5, 1) both;
+  --ease-spring: cubic-bezier(0.3, 1.3, 0.5, 1);
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96) translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(18px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes slide-from-right {
+    from {
+      opacity: 0;
+      transform: translateX(32px);
+      filter: blur(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+  }
+
+  @keyframes slide-from-left {
+    from {
+      opacity: 0;
+      transform: translateX(-32px);
+      filter: blur(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+  }
+
+  @keyframes shake {
+    10%,
+    90% {
+      transform: translateX(-1px);
+    }
+    20%,
+    80% {
+      transform: translateX(3px);
+    }
+    30%,
+    50%,
+    70% {
+      transform: translateX(-6px);
+    }
+    40%,
+    60% {
+      transform: translateX(6px);
+    }
+  }
+
+  @keyframes roll {
+    from {
+      transform: rotate(-360deg) scale(0.6);
+    }
+    to {
+      transform: none;
+    }
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background: var(--color-frame);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer base {
+  /* Хто вимкнув анімації в системі — бачить одразу кінцевий стан. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Діти з'являються по черзі, «сходинкою». */
+  .stagger-children > * {
+    animation: var(--animate-fade-up);
+    animation-duration: 380ms;
+  }
+  .stagger-children > :nth-child(2) {
+    animation-delay: 50ms;
+  }
+  .stagger-children > :nth-child(3) {
+    animation-delay: 100ms;
+  }
+  .stagger-children > :nth-child(4) {
+    animation-delay: 150ms;
+  }
+  .stagger-children > :nth-child(5) {
+    animation-delay: 200ms;
+  }
+  .stagger-children > :nth-child(n + 6) {
+    animation-delay: 250ms;
+  }
+
+  /* Градієнтне «полотно» як на референсі: лайм → блакитний → лавандовий. */
+  .canvas-gradient {
+    background:
+      radial-gradient(120% 90% at 0% 0%, #e6f68f 0%, rgb(230 246 143 / 0) 55%),
+      radial-gradient(90% 80% at 100% 100%, #cfc6f4 0%, rgb(207 198 244 / 0) 60%),
+      linear-gradient(135deg, #eef6c8 0%, #d9e6ec 45%, #d6d3f3 100%);
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(0 0 0 / 0.15) transparent;
+  }
+}
