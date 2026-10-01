@@ -65,7 +65,9 @@ export function useTeamsDraft(game: Game, playersById: ReadonlyMap<PlayerId, Pla
       teams?.map((team) => {
         const without = team.playerIds.filter((id) => id !== playerId);
         const ids = team.id === toTeamId ? [...without, playerId] : without;
-        return { ...team, playerIds: sortLineup(ids, playersById) };
+        // Місце на полі було в старій команді — у новій гравець починає із запасу.
+        const { [playerId]: _moved, ...positions } = team.positions ?? {};
+        return { ...team, playerIds: sortLineup(ids, playersById), positions };
       }) ?? null,
     );
   };

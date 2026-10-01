@@ -96,11 +96,18 @@
 
 ## Розстановка — `src/features/lineup`
 
+Перетягування — на `@dnd-kit/core` (миша; на телефоні — затиснути й тягнути). Логіка чернетки — `useLineupDraft.ts`, схема й координати — `formation.ts`, id для перетягування — `dnd.ts`.
+
 | Компонент | Файл | Призначення |
 |---|---|---|
+| `LineupBoard` | `LineupBoard.tsx` | Розстановка однієї гри: панель дій («Перемішати», «Очистити», «Зберегти»), список гравців, поле, картки команд; обробка перетягувань. Пропси: `game`, `players`, `editable`, `pitchHeader`, `onEditGame` |
+| `LineupPitch` | `LineupPitch.tsx` | Поле-ціль для перетягування з двома командами (верхня / нижня); при 3–4 командах вибір, хто на полі |
 | `PitchMarkings` | `PitchMarkings.tsx` | SVG-розмітка поля 68 × 105 |
-| `LineupToken` | `LineupToken.tsx` | Фішка гравця або вільне місце «+» на полі |
-| `LineupTeamBar` | `LineupTeamBar.tsx` | Рядок команди над/під полем: літера, склад, «перемішати» |
+| `LineupToken`, `DragToken` | `LineupToken.tsx` | Фішка гравця на полі в кольорі команди (перетягується); фішка під курсором під час перетягування |
+| `LineupTeamBar` | `LineupTeamBar.tsx` | Рядок команди над/під полем: колір, назва або `Select` команди, склад, «перемішати місця» (`onShuffle`) |
+| `LineupTeamCard` | `LineupTeamCard.tsx` | Картка команди-ціль: хто на полі, хто в запасі, «Розставити», прибрати гравця |
+| `PlayerPool` | `PlayerPool.tsx` | Гравці без команди: пошук, фільтр «Усі / Записані на гру», статус запису, «+» — додати в команду без перетягування |
+| `DraggablePlayerRow` | `DraggablePlayerRow.tsx` | Рядок гравця, якого можна тягнути; `from` (pool / team), `meta`, `trailing` |
 
 ## Сторінки — `src/pages`
 
@@ -108,7 +115,7 @@
 |---|---|---|
 | Календар | `CalendarPage.tsx` | `/` |
 | Гра | `GamePage.tsx` | `/games/:gameId` |
-| Розстановка | `LineupPage.tsx` | `/lineup` (поки статичні дані) |
+| Розстановка | `LineupPage.tsx` | `/lineup?game=…` (вибір гри, «Нова гра», зміна кількості учасників) |
 | Гравці | `PlayersPage.tsx` | `/players` |
 | Вхід / реєстрація | `AuthPage.tsx` | `/login`, `/register?invite=…` (без сайдбару; без чинного коду форма реєстрації прихована) |
 | Профіль | `ProfilePage.tsx` | `/profile` |

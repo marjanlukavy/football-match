@@ -1,7 +1,7 @@
 import { subDays } from 'date-fns';
 import { describe, expect, it } from 'vitest';
 import type { Game } from '@futbol/shared/types';
-import { createGame, gameInput, setupCompany } from './helpers';
+import { Client, createGame, gameInput, setupCompany } from './helpers';
 
 describe('ігри', () => {
   it('створювати гру може лише організатор', async () => {
@@ -86,6 +86,39 @@ describe('ігри', () => {
 
     const updated = await admin.request('PUT', `/games/${game.id}`, gameInput({ teamCount: 3 }));
     expect(updated.data.teams).toBeNull();
+  });
+
+  it('розстановка: незаписаних гравців записує в межах ліміту, позиції лише для своїх', async () => {
+    const { admin, players } = await setupCompany(4);
+    const game = await createGame(admin, { maxPlayers: 4 });
+    const ids: string[] = [];
+    for (const p of players) ids.push((await p.request('GET', '/me')).data.id);
+    await players[0].request('PUT', `/games/${game.id}/attendance`, { status: 'confirmed' });
+
+    const orange = { id: 'orange', name: 'Помаранчеві', color: 'orange', playerIds: [ids[0], ids[1]] };
+    const blue = { id: 'blue', name: 'Сині', color: 'blue', playerIds: [ids[2], ids[3]] };
+
+    const stranger = await admin.request('PUT', `/games/${game.id}/teams`, {
+      includeMaybe: false,
+      teams: [{ ...orange, positions: { [ids[2]]: { x: 50, y: 10 } } }, blue],
+    });
+    expect(stranger.status).toBe(422);
+
+    const saved = await admin.request('PUT', `/games/${game.id}/teams`, {
+      includeMaybe: false,
+      teams: [{ ...orange, positions: { [ids[0]]: { x: 50, y: 4 } } }, blue],
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.data.teams.teams[0].positions[ids[0]]).toEqual({ x: 50, y: 4 });
+    expect(saved.data.registrations.filter((r: { status: string }) => r.status === 'confirmed')).toHaveLength(4);
+
+    // П'ятий гравець уже не влазить у ліміт 4.
+    const extra = await new Client().register('player-extra', await admin.invite());
+    const full = await admin.request('PUT', `/games/${game.id}/teams`, {
+      includeMaybe: false,
+      teams: [{ ...orange, playerIds: [...orange.playerIds, extra.id] }, blue],
+    });
+    expect(full.status).toBe(409);
   });
 
   it('ліміт місць не можна зменшити нижче вже підтверджених', async () => {

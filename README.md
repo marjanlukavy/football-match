@@ -36,6 +36,7 @@ npx --registry=https://registry.npmjs.org/ neon@6.0.0 env pull -e DATABASE_URL,D
 | `npm run dev` | API і фронт у режимі розробки |
 | `npm test` | тести бекенду (база `futbol_test`) і фронту |
 | `npm run typecheck` | перевірка типів у всіх пакетах |
+| `npm run db:add-players -w backend` | додати 15 гравців (пароль `futbol123`), нічого не стираючи — працює й на Neon |
 | `npm run db:migrate` | застосувати міграції (сервер робить це й сам при старті) |
 | `npm run db:generate -w backend` | згенерувати міграцію після зміни `backend/src/db/schema.ts` |
 | `npm run build && NODE_ENV=production npm start` | продакшн: один сервер віддає API і зібраний фронт |

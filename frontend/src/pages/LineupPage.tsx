@@ -1,100 +1,132 @@
-import { Link } from 'react-router-dom';
-import { ChevronLeft, Ellipsis } from 'lucide-react';
-import { initials } from '@/components/ui/Avatar';
-import { Badge } from '@/components/ui/Badge';
+import { useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { subDays } from 'date-fns';
+import { ArrowUpRight, LandPlot, Pencil, Plus } from 'lucide-react';
+import { useGames, useIsAdmin, usePlayers, usePlayersById } from '@/api/hooks';
+import { getErrorMessage } from '@/api';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { LineupTeamBar } from '@/features/lineup/LineupTeamBar';
-import { LineupToken, SIDE_BG, SIDE_TEXT } from '@/features/lineup/LineupToken';
-import { LINEUP_GAME, LINEUP_TEAMS, type LineupTeam } from '@/features/lineup/mockLineup';
-import { PITCH_LENGTH, PITCH_WIDTH, PitchMarkings } from '@/features/lineup/PitchMarkings';
-import { cn } from '@/lib/cn';
+import { Select } from '@/components/ui/Select';
+import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States';
+import { confirmedCount, gameEnd, sortByStart } from '@futbol/shared/game';
+import type { Game } from '@futbol/shared/types';
+import { GameFormModal } from '@/features/games/GameFormModal';
+import { LineupBoard } from '@/features/lineup/LineupBoard';
+import { capitalize, fmt } from '@/lib/date';
 
-/** Хто де грає: поле з розстановкою обох команд. Поки на статичних даних. */
-export default function LineupPage() {
-  const [teamA, teamB] = LINEUP_TEAMS;
+/** Ігри за останній місяць і всі майбутні. */
+const FROM = subDays(new Date(), 30).toISOString();
 
-  return (
-    <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center">
-      {/* На десктопі ширину панелі обмежуємо висотою вікна, щоб поле влазило цілком. */}
-      <section
-        aria-label="Розстановка на полі"
-        className="w-full max-w-[520px] rounded-card bg-pitch p-4 text-white shadow-pop sm:p-6 lg:max-w-[min(520px,calc((100dvh_-_18rem)_*_0.6476_+_3rem))]"
-      >
-        <header className="mb-5 flex items-center gap-3">
-          <Link
-            to="/"
-            aria-label="Назад до календаря"
-            className="grid size-10 shrink-0 place-items-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
-          >
-            <ChevronLeft className="size-5" />
-          </Link>
-          <div className="min-w-0 flex-1 text-center">
-            <h1 className="text-base font-semibold">{LINEUP_GAME.title}</h1>
-            <p className="truncate text-xs text-white/50">{LINEUP_GAME.subtitle}</p>
-          </div>
-          <button
-            type="button"
-            aria-label="Ще"
-            className="grid size-10 shrink-0 place-items-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
-          >
-            <Ellipsis className="size-5" />
-          </button>
-        </header>
+const gameLabel = (game: Game) => `${capitalize(fmt(game.startsAt, 'EEEEEE, d MMMM · HH:mm'))} · ${game.location.name}`;
 
-        <LineupTeamBar team={teamA} />
-
-        <div className="relative my-4" style={{ aspectRatio: `${PITCH_WIDTH} / ${PITCH_LENGTH}` }}>
-          <PitchMarkings className="absolute inset-0 size-full" />
-          {LINEUP_TEAMS.map((team) =>
-            team.slots.map((slot) => <LineupToken key={slot.id} slot={slot} side={team.side} />),
-          )}
-        </div>
-
-        <LineupTeamBar team={teamB} mirrored />
-      </section>
-
-      <aside className="flex w-full max-w-[520px] flex-col gap-4 lg:max-w-sm">
-        {LINEUP_TEAMS.map((team) => (
-          <RosterCard key={team.side} team={team} />
-        ))}
-      </aside>
-    </div>
-  );
+/** Найближча гра, що ще не закінчилась; якщо таких немає — остання. */
+function defaultGame(games: readonly Game[]): Game | undefined {
+  const now = Date.now();
+  return games.find((g) => gameEnd(g.startsAt, g.durationMin).getTime() > now) ?? games.at(-1);
 }
 
-/** Склад команди списком — дублює поле для швидкого перегляду. */
-function RosterCard({ team }: { team: LineupTeam }) {
-  const filled = team.slots.flatMap((s) => s.player ?? []);
-  const free = team.slots.length - filled.length;
+/** Хто де грає: вибір гри, склади команд і розстановка на полі. */
+export default function LineupPage() {
+  const [params, setParams] = useSearchParams();
+  const gamesQuery = useGames({ from: FROM });
+  const playersQuery = usePlayers();
+  const playersById = usePlayersById();
+  const isAdmin = useIsAdmin();
+  const [form, setForm] = useState<'create' | 'edit' | null>(null);
+
+  const games = useMemo(() => sortByStart(gamesQuery.data ?? []), [gamesQuery.data]);
+  const game = games.find((g) => g.id === params.get('game')) ?? defaultGame(games);
+  const selectGame = (id: string) => setParams({ game: id }, { replace: true });
+
+  if (gamesQuery.isPending || playersQuery.isPending) return <PageLoader />;
+  if (gamesQuery.isError || playersQuery.isError) {
+    const error = gamesQuery.error ?? playersQuery.error;
+    return (
+      <ErrorState
+        message={getErrorMessage(error)}
+        onRetry={() => {
+          void gamesQuery.refetch();
+          void playersQuery.refetch();
+        }}
+      />
+    );
+  }
+
+  const pitchHeader = game && (
+    <header className="mb-5 text-center">
+      <h1 className="text-base font-semibold">Розстановка</h1>
+      <p className="truncate text-xs text-white/50">{gameLabel(game)}</p>
+    </header>
+  );
 
   return (
-    <Card className="p-5">
-      <div className="flex items-center gap-3">
-        <span className={cn('text-2xl leading-none font-extrabold', SIDE_TEXT[team.side])}>{team.label}</span>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-[15px] font-semibold tracking-tight">{team.name}</h2>
-          <p className="text-xs text-muted">
-            {filled.length} з {team.slots.length} на полі
-          </p>
-        </div>
-        {free > 0 && <Badge tone="warn">вільно: {free}</Badge>}
-      </div>
-
-      <ul className="mt-4 divide-y divide-line">
-        {filled.map((p) => (
-          <li key={p.id} className="flex items-center gap-3 py-2">
-            <span
-              className={cn(
-                'grid size-8 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white',
-                SIDE_BG[team.side],
-              )}
-            >
-              {initials(p.name)}
+    <div className="flex flex-col gap-5">
+      <Card className="flex flex-wrap items-center gap-3 p-3 sm:p-4">
+        {games.length > 0 && game ? (
+          <>
+            <Select
+              ariaLabel="Гра"
+              value={game.id}
+              onValueChange={selectGame}
+              options={games.map((g) => ({ value: g.id, label: gameLabel(g) }))}
+              className="max-w-full min-w-0 flex-1 basis-64 sm:flex-none"
+            />
+            <span className="px-1 text-sm text-muted">
+              Записались {confirmedCount(game)} з {game.maxPlayers}
             </span>
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.name}</span>
-          </li>
-        ))}
-      </ul>
-    </Card>
+          </>
+        ) : (
+          <p className="px-1 text-sm text-muted">Ігор ще немає</p>
+        )}
+        <div className="ml-auto flex flex-wrap gap-2">
+          {game && (
+            <Link
+              to={`/games/${game.id}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-ink/70 transition-colors hover:bg-black/5 hover:text-ink"
+            >
+              <ArrowUpRight className="size-3.5" />
+              Сторінка гри
+            </Link>
+          )}
+          {isAdmin && game && (
+            <Button size="sm" variant="soft" icon={<Pencil className="size-3.5" />} onClick={() => setForm('edit')}>
+              Учасники й гра
+            </Button>
+          )}
+          {isAdmin && (
+            <Button size="sm" variant="primary" icon={<Plus className="size-3.5" />} onClick={() => setForm('create')}>
+              Нова гра
+            </Button>
+          )}
+        </div>
+      </Card>
+
+      {game ? (
+        <LineupBoard
+          key={`${game.id}-${game.teamCount}`}
+          game={game}
+          players={playersQuery.data}
+          playersById={playersById}
+          editable={isAdmin}
+          pitchHeader={pitchHeader}
+          onEditGame={() => setForm('edit')}
+        />
+      ) : (
+        <Card>
+          <EmptyState
+            icon={<LandPlot className="size-6" />}
+            title="Немає гри для розстановки"
+            description={isAdmin ? 'Створіть гру — і розставте команди на полі.' : 'Організатор ще не створив жодної гри.'}
+          />
+        </Card>
+      )}
+
+      <GameFormModal
+        open={form !== null}
+        onClose={() => setForm(null)}
+        game={form === 'edit' ? game : undefined}
+        onSaved={(saved) => selectGame(saved.id)}
+      />
+    </div>
   );
 }

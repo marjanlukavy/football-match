@@ -105,6 +105,9 @@ export const teamsDrawInputSchema = z.object({
         name: z.string().trim().min(1).max(40),
         color: z.enum(['orange', 'blue', 'white', 'yellow']),
         playerIds: z.array(idSchema).max(MAX_PLAYERS_LIMIT),
+        positions: z
+          .record(idSchema, z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100) }))
+          .optional(),
       }),
     )
     .min(MIN_TEAMS)

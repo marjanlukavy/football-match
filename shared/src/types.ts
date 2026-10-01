@@ -30,11 +30,22 @@ export interface GameLocation {
 
 export type TeamColor = 'orange' | 'blue' | 'white' | 'yellow';
 
+/**
+ * Місце гравця на полі у відсотках від своїх воріт:
+ * x — зліва направо (0–100), y — від власної лінії воріт до чужої (0–100).
+ */
+export interface PitchPoint {
+  x: number;
+  y: number;
+}
+
 export interface Team {
   id: string;
   name: string;
   color: TeamColor;
   playerIds: PlayerId[];
+  /** Розстановка на полі; гравець без позиції — у запасі. */
+  positions?: Record<PlayerId, PitchPoint>;
 }
 
 export interface TeamsDraw {

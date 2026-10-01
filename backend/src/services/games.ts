@@ -13,7 +13,7 @@ import type {
   TeamsDrawInput,
 } from '@futbol/shared/types';
 import type { Db, Tx } from '../db/client';
-import { games, registrations } from '../db/schema';
+import { games, players, registrations } from '../db/schema';
 import { requireAdmin } from './access';
 
 type Executor = Db | Tx;
@@ -191,14 +191,39 @@ export function setDuty(db: Db, me: Player, gameId: GameId, kind: DutyKind, play
   });
 }
 
+/**
+ * Зберігає склади. Організатор може поставити в команду й того, хто не записувався:
+ * такого гравця записуємо як «точно буду», якщо вистачає місць.
+ */
 export function saveTeams(db: Db, me: Player, gameId: GameId, draw: TeamsDrawInput): Promise<Game> {
   requireAdmin(me);
   return mutateGame(db, gameId, async (tx, game) => {
     const ids = draw.teams.flatMap((t) => t.playerIds);
     if (new Set(ids).size !== ids.length) throw new ApiError('VALIDATION', 'Гравець не може бути у двох командах');
-    if (ids.some((id) => !getRegistration(game, id))) {
-      throw new ApiError('VALIDATION', 'У командах є гравці, які не записані на гру');
+    for (const team of draw.teams) {
+      const members = new Set(team.playerIds);
+      if (Object.keys(team.positions ?? {}).some((id) => !members.has(id))) {
+        throw new ApiError('VALIDATION', 'На полі стоїть гравець не зі своєї команди');
+      }
     }
+
+    const newcomers = ids.filter((id) => !getRegistration(game, id));
+    if (newcomers.length > 0) {
+      const known = await tx.select({ id: players.id }).from(players).where(inArray(players.id, newcomers));
+      if (known.length !== newcomers.length) throw new ApiError('VALIDATION', 'У командах є невідомі гравці');
+      const confirmed = confirmedCount(game) + newcomers.length;
+      if (confirmed > game.maxPlayers) {
+        throw new ApiError(
+          'CONFLICT',
+          `Бракує місць: у командах ${confirmed}, а ліміт гри — ${game.maxPlayers}. Збільште кількість учасників`,
+        );
+      }
+      const updatedAt = new Date();
+      await tx
+        .insert(registrations)
+        .values(newcomers.map((playerId) => ({ gameId, playerId, status: 'confirmed' as const, updatedAt })));
+    }
+
     await tx
       .update(games)
       .set({ teams: { ...draw, createdAt: new Date().toISOString(), createdBy: me.id } })
